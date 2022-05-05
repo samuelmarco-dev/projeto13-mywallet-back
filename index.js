@@ -6,6 +6,7 @@ import dotenv from "dotenv";
 import joi from "joi";
 import bcrypt from "bcrypt";
 import { v4 as uuid} from "uuid";
+import dayjs from "dayjs";
 
 import chalk from "chalk";
 
@@ -100,9 +101,12 @@ appServer.get('/wallet', async (req, res)=>{
     if(!userSession) return res.sendStatus(401);
 
     const usuarioExistente = await db.collection('users').findOne({_id: userSession.userId});
+    
     if(usuarioExistente){
-        delete usuarioExistente.password;
-        res.send(usuarioExistente);
+        const dadosUsuarios = await db.collection('wallet').find({token}).toArray();
+        delete dadosUsuarios.token;
+
+        return res.status(200).send(dadosUsuarios);
     }else{
         console.log('usuario não encontrado')
         res.sendStatus(401);
@@ -118,29 +122,78 @@ appServer.post('/introduce-entry', async (req, res)=>{
 
     const schemaMensagem = joi.object({
         name: joi.string().required(),
-        type: joi.string().valid('entrada', 'saída').required(),
+        type: joi.string().valid('entrada').required(),
         description: joi.string().required(),
         value: joi.number().required()
     });
+    const validacao = schemaMensagem.validate({name, type, description, value}, {abortEarly: false});
+
+    if(validacao.error){
+        console.log('A validação dos dados encontrou erro');
+        return res.status(422).send(validacao.error.details.map(err=>err.message));
+    }
+
+    try {
+        const userSession = await db.collection('sessions').findOne({token});
+        if(!userSession) return res.sendStatus(401);
     
-
-    const userSession = await db.collection('sessions').findOne({token});
-    if(!userSession) return res.sendStatus(401);
-
-    const usuarioExistente = await db.collection('users').findOne({_id: userSession.userId});
-    if(usuarioExistente){
-        const dados = await db.collection('wallet').insertOne({name, type, description, value});
-        return res.sendStatus(201);
-    }else{
-        console.log('usuario não encontrado')
-        res.sendStatus(401);
+        const usuarioExistente = await db.collection('users').findOne({_id: userSession.userId});
+        if(usuarioExistente){
+            const dados = await db.collection('wallet').insertOne({
+                name, type, description, value, date: dayjs().format('DD/MM'), token
+            });
+    
+            delete dados.token;
+            return res.send(dados).status(201);
+        }else{
+            console.log('usuario não encontrado')
+            res.sendStatus(401);
+        }
+    } catch (error) {
+        console.log('catch conexão', error);
+        res.sendStatus(500);
     }
 });
 
 appServer.post('/introduce-exit', async (req, res)=>{
+    const { name, type, description, value } = req.body;
     const { authorization } = req.headers;
     const token = authorization?.replace('Bearer', '').trim();
     if(!token) return res.sendStatus(401);
+
+    const schemaMensagem = joi.object({
+        name: joi.string().required(),
+        type: joi.string().valid('saída').required(),
+        description: joi.string().required(),
+        value: joi.number().required()
+    });
+    const validacao = schemaMensagem.validate({name, type, description, value}, {abortEarly: false});
+
+    if(validacao.error){
+        console.log('A validação dos dados encontrou erro');
+        return res.status(422).send(validacao.error.details.map(err=>err.message));
+    }
+
+    try {
+        const userSession = await db.collection('sessions').findOne({token});
+        if(!userSession) return res.sendStatus(401);
+    
+        const usuarioExistente = await db.collection('users').findOne({_id: userSession.userId});
+        if(usuarioExistente){
+            const dados = await db.collection('wallet').insertOne({
+                name, type, description, value, date: dayjs().format('DD/MM'), token
+            });
+    
+            delete dados.token;
+            return res.send(dados).status(201);
+        }else{
+            console.log('usuario não encontrado')
+            res.sendStatus(401);
+        }
+    } catch (error) {
+        console.log('catch conexão', error);
+        res.sendStatus(500);
+    }
 });
 
 const port = process.env.PORT || 5000;
