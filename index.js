@@ -5,7 +5,7 @@ import dotenv from "dotenv";
 
 import joi from "joi";
 import bcrypt from "bcrypt";
-import { v4 as uuid} from "uuid";
+import { v4 as uuid } from "uuid";
 import dayjs from "dayjs";
 
 import chalk from "chalk";
@@ -16,6 +16,7 @@ appServer.use(json());
 dotenv.config();
 
 let db = null;
+
 const mongoClient = new MongoClient(process.env.MONGO_URL); //conexão no banco mongoDB
 const promise = mongoClient.connect(); //tentando conexão 
 promise.then(()=>{
@@ -27,11 +28,11 @@ promise.then(()=>{
 
 //TODO: rota de cadastro
 appServer.post('/sign-up', async (req, res)=>{
-    const {name, email, password} = req.body;
+    const { name, email, password } = req.body;
     const regex = /^[a-zA-zçÇ]{3,12}[0-9]{4,8}$/;
 
     if(Number(name) || name.includes('1', '2', '3', '4', '5', '6', '7', '8', '9', '0')){
-        console.log('Nome com caracteres númericos, não são aceitos');
+        console.log('Nome com caracteres númericos, não serão aceitos');
         return res.sendStatus(422);
     }
 
@@ -44,7 +45,7 @@ appServer.post('/sign-up', async (req, res)=>{
     console.log(validacao);
     
     if(validacao.error){
-        console.log('Todos os dados são obrigatórios');
+        console.log('Todos os dados são obrigatórios. A validação encontrou erro');
         return res.status(422).send(validacao.error.details.map(err=>err.message));
     }
 
@@ -79,7 +80,7 @@ appServer.post('sign-in', async (req, res)=>{
             console.log('usuário e senha deram match');
             
             const token = uuid();
-            await db.collection('sessions').insertOne({userId: usuarioExistente.id, token});
+            await db.collection('sessions').insertOne({userId: usuarioExistente._id, token});
             return res.sendStatus(token);
         }else{
             console.log('usuario e senha não deram match');
@@ -155,6 +156,7 @@ appServer.post('/introduce-entry', async (req, res)=>{
     }
 });
 
+//TODO: rota para postar dados como 'saída' de receitas
 appServer.post('/introduce-exit', async (req, res)=>{
     const { name, type, description, value } = req.body;
     const { authorization } = req.headers;
