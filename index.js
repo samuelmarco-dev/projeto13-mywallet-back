@@ -56,7 +56,7 @@ appServer.post('/sign-up', async (req, res)=>{
 
         const senhaCriptografada = bcrypt.hashSync(password, 10);
         await db.collection('users').insertOne({name, email, password: senhaCriptografada});
-        res.sendStatus(201);
+        return res.sendStatus(201);
     } catch (error) {
         console.log('catch conexão', error);
         res.sendStatus(500);
@@ -64,7 +64,84 @@ appServer.post('/sign-up', async (req, res)=>{
 });
 
 //TODO: rota de login
+appServer.post('sign-in', async (req, res)=>{
+    const { email, password } = req.body;
+
+    try {
+        const usuarioExistente = await db.collection('users').findOne({email});
+        if(usuarioExistente && !(bcrypt.compareSync(password, usuarioExistente.password))){
+            console.log('Senha incorreta');
+            return res.status(403).send('Senha incorreta');
+        }
+
+        if(usuarioExistente && bcrypt.compareSync(password, usuarioExistente.password)){
+            console.log('usuário e senha deram match');
+            
+            const token = uuid();
+            await db.collection('sessions').insertOne({userId: usuarioExistente.id, token});
+            return res.sendStatus(token);
+        }else{
+            console.log('usuario e senha não deram match');
+            return res.sendStatus(401);
+        }
+    } catch (error) {
+        console.log('catch conexão', error);
+        res.sendStatus(500);
+    }   
+});
+
 //TODO: rota de buscar dados
+appServer.get('/wallet', async (req, res)=>{
+    const { authorization } = req.headers;
+    const token = authorization?.replace('Bearer', '').trim();
+    if(!token) return res.sendStatus(401);
+
+    const userSession = await db.collection('sessions').findOne({token});
+    if(!userSession) return res.sendStatus(401);
+
+    const usuarioExistente = await db.collection('users').findOne({_id: userSession.userId});
+    if(usuarioExistente){
+        delete usuarioExistente.password;
+        res.send(usuarioExistente);
+    }else{
+        console.log('usuario não encontrado')
+        res.sendStatus(401);
+    }
+});
+
+//TODO: rota para postar dados como 'entrada' de receitas
+appServer.post('/introduce-entry', async (req, res)=>{
+    const { name, type, description, value } = req.body;
+    const { authorization } = req.headers;
+    const token = authorization?.replace('Bearer', '').trim();
+    if(!token) return res.sendStatus(401);
+
+    const schemaMensagem = joi.object({
+        name: joi.string().required(),
+        type: joi.string().valid('entrada', 'saída').required(),
+        description: joi.string().required(),
+        value: joi.number().required()
+    });
+    
+
+    const userSession = await db.collection('sessions').findOne({token});
+    if(!userSession) return res.sendStatus(401);
+
+    const usuarioExistente = await db.collection('users').findOne({_id: userSession.userId});
+    if(usuarioExistente){
+        const dados = await db.collection('wallet').insertOne({name, type, description, value});
+        return res.sendStatus(201);
+    }else{
+        console.log('usuario não encontrado')
+        res.sendStatus(401);
+    }
+});
+
+appServer.post('/introduce-exit', async (req, res)=>{
+    const { authorization } = req.headers;
+    const token = authorization?.replace('Bearer', '').trim();
+    if(!token) return res.sendStatus(401);
+});
 
 const port = process.env.PORT || 5000;
 appServer.listen(port, ()=>{
