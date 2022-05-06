@@ -98,8 +98,9 @@ appServer.post('/sign-in', async (req, res)=>{
             const token = uuid();
             await db.collection('sessions').insertOne({userId: usuarioExistente._id, token});
 
-            console.log('token gerado', token);
-            return res.send(token).status(200);
+            const informacao = {token, name: usuarioExistente.name};
+            console.log('token gerado', informacao);
+            return res.send(informacao).status(200);
         }else{
             console.log('usuario e senha não deram match');
             return res.sendStatus(401);
@@ -112,6 +113,7 @@ appServer.post('/sign-in', async (req, res)=>{
 
 //TODO: rota de buscar dados
 appServer.get('/wallet', async (req, res)=>{
+    const { email } = req.body;
     const { authorization } = req.headers;
     const token = authorization?.replace('Bearer', '').trim();
     console.log('token no get', token);
@@ -127,7 +129,7 @@ appServer.get('/wallet', async (req, res)=>{
         
         if(usuarioExistente){
             console.log('usuario encontrado em user', usuarioExistente);
-            const dadosUsuarios = await db.collection('wallet').find({token}).toArray();
+            const dadosUsuarios = await db.collection('wallet').find({email}).toArray();
             console.log("find", dadosUsuarios);
 
             dadosUsuarios.map(item => delete item.token);
@@ -147,7 +149,7 @@ appServer.get('/wallet', async (req, res)=>{
 //TODO: rota para postar dados como 'entrada' de receitas
 appServer.post('/introduce-entry', async (req, res)=>{
     const date = dayjs().format('DD/MM');
-    const { name, type, description, value } = req.body;
+    const { name, type, description, value, email } = req.body;
     const { authorization } = req.headers;
     const token = authorization?.replace('Bearer', '').trim();
     console.log('token no post', token);
@@ -162,7 +164,8 @@ appServer.post('/introduce-entry', async (req, res)=>{
         name: joi.string().required(),
         type: joi.string().valid('entrada').required(),
         description: joi.string().required(),
-        value: joi.number().required()
+        value: joi.number().required(),
+        email: joi.string().email().required()
     });
     const validacao = schemaMensagem.validate({name, type, description, value}, {abortEarly: false});
 
@@ -188,7 +191,7 @@ appServer.post('/introduce-entry', async (req, res)=>{
             if(!entradaJaExiste || entradaJaExiste.value !== value){
                 console.log('entrada não existe ou valor é diferente', entradaJaExiste);
                 const dados = await db.collection('wallet').insertOne({
-                    name, type, description, value, date: dayjs().format('DD/MM'), token
+                    name, type, description, value, date: dayjs().format('DD/MM'), token, email
                 });
                 delete dados.token;
     
@@ -212,7 +215,7 @@ appServer.post('/introduce-entry', async (req, res)=>{
 //TODO: rota para postar dados como 'saída' de receitas
 appServer.post('/introduce-exit', async (req, res)=>{
     const date = dayjs().format('DD/MM');
-    const { name, type, description, value } = req.body;
+    const { name, type, description, value, email } = req.body;
     const { authorization } = req.headers;
     const token = authorization?.replace('Bearer', '').trim();
     console.log('token no post', token);
@@ -227,7 +230,8 @@ appServer.post('/introduce-exit', async (req, res)=>{
         name: joi.string().required(),
         type: joi.string().valid('saída').required(),
         description: joi.string().required(),
-        value: joi.number().required()
+        value: joi.number().required(),
+        email: joi.string().email().required()
     });
     const validacao = schemaMensagem.validate({name, type, description, value}, {abortEarly: false});
 
@@ -253,7 +257,7 @@ appServer.post('/introduce-exit', async (req, res)=>{
             if(!entradaJaExiste || entradaJaExiste.value !== value){
                 console.log('entrada não existe ou valor é diferente', entradaJaExiste);
                 const dados = await db.collection('wallet').insertOne({
-                    name, type, description, value, date: dayjs().format('DD/MM'), token
+                    name, type, description, value, date: dayjs().format('DD/MM'), token, email
                 });
                 delete dados.token;
     
