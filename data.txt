@@ -1,0 +1,20 @@
+{
+    "name": "João",
+    "email": "test@example.com", 
+    "password": "aaa1234"
+}
+token: 'bdbfde80-e408-493f-9e8d-0827de32233b'
+token: 'dc1edf60-f94b-4029-a11d-c07e301bec6b'
+
+{
+    "name": "Pedro",
+    "email": "driven@example.com", 
+    "password": "aaaxx12345"
+}
+token: '82063d82-f8e2-4435-aada-867421c18966'
+
+{
+    "name": "Matheus",
+    "email": "mat@example.com", 
+    "password": "aaaa1234"
+}

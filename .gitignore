@@ -2,3 +2,5 @@
 .env
 /.pnp
 .pnp.js
+/data/
+.txt
