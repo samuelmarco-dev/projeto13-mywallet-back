@@ -26,14 +26,15 @@ promise.then(()=>{
     console.log(chalk.bold.red("Erro ao se conectar ao banco de dados", e));
 });
 
-//TODO: rota de cadastro
 appServer.post('/sign-up', async (req, res)=>{
     const { name, email, password } = req.body;
     const regex = /^[a-zA-zçÇ]{3,12}[0-9]{4,8}$/;
+    const regexName = /^[a-zA-ZáéíóúàâêôãõüçÁÉÍÓÚÀÂÊÔÃÕÜÇ ]+$/;
+    console.log(regexName.test(name));
 
-    if(!name || Number(name) || name.includes('1', '2', '3', '4', '5', '6', '7', '8', '9', '0')){
+    if(!name || Number(name) || !regexName.test(name)){
         console.log('Nome com caracteres númericos, não serão aceitos');
-        return res.sendStatus(400); //res.status(422).send(Nome com caracteres númericos não serão aceitos)
+        return res.status(400).send('Nome com caracteres númericos, não serão aceitos');
     }
 
     const schemaCadastro = joi.object({
@@ -68,7 +69,6 @@ appServer.post('/sign-up', async (req, res)=>{
     }
 });
 
-//TODO: rota de login
 appServer.post('/sign-in', async (req, res)=>{
     const { email, password } = req.body;
     const regex = /^[a-zA-zçÇ]{3,12}[0-9]{4,8}$/;
@@ -111,14 +111,25 @@ appServer.post('/sign-in', async (req, res)=>{
     }   
 });
 
-//TODO: rota de buscar dados
 appServer.get('/wallet', async (req, res)=>{
-    const { email } = req.body;
+    const { email } = req.headers;
     const { authorization } = req.headers;
+    console.log(authorization, email);
+
     const token = authorization?.replace('Bearer', '').trim();
     console.log('token no get', token);
-    if(!token) return res.sendStatus(401);
+    if(!token || !email) return res.sendStatus(401);
     
+    const schemaEmail = joi.object({
+        email: joi.string().email().required()
+    });
+    const validacao = schemaEmail.validate({email}, {abortEarly: false});
+
+    if(validacao.error){
+        console.log('A validação encontrou erro para fazer get com este email');
+        return res.status(422).send(validacao.error.details.map(err=>err.message));
+    }
+
     try {
         console.log('bloco try/catch no get com token...')
         const userSession = await db.collection('sessions').findOne({token});
@@ -127,6 +138,9 @@ appServer.get('/wallet', async (req, res)=>{
         console.log('usuario encontrado em sessions', userSession);
         const usuarioExistente = await db.collection('users').findOne({_id: userSession.userId});
         
+        console.log('usuario encontrado em users', usuarioExistente);
+        if(usuarioExistente.email !== validacao.value.email) return res.sendStatus(401);
+
         if(usuarioExistente){
             console.log('usuario encontrado em user', usuarioExistente);
             const dadosUsuarios = await db.collection('wallet').find({email}).toArray();
@@ -146,7 +160,6 @@ appServer.get('/wallet', async (req, res)=>{
     }
 });
 
-//TODO: rota para postar dados como 'entrada' de receitas
 appServer.post('/introduce-entry', async (req, res)=>{
     const date = dayjs().format('DD/MM');
     const { name, type, description, value, email } = req.body;
@@ -162,12 +175,12 @@ appServer.post('/introduce-entry', async (req, res)=>{
 
     const schemaMensagem = joi.object({
         name: joi.string().required(),
+        email: joi.string().email().required(),
         type: joi.string().valid('entrada').required(),
         description: joi.string().required(),
-        value: joi.number().required(),
-        email: joi.string().email().required()
+        value: joi.number().required()
     });
-    const validacao = schemaMensagem.validate({name, type, description, value}, {abortEarly: false});
+    const validacao = schemaMensagem.validate({name, email, type, description, value}, {abortEarly: false});
 
     console.log('token', token);
     console.log('validação', validacao);
@@ -184,6 +197,10 @@ appServer.post('/introduce-entry', async (req, res)=>{
         
         console.log('token encontrado em sessions', userSession);
         const usuarioExistente = await db.collection('users').findOne({_id: userSession.userId});
+
+        console.log('usuario encontrado em users', usuarioExistente);
+        if(usuarioExistente.email !== validacao.value.email) return res.sendStatus(401);
+
         if(usuarioExistente){
             console.log('usuário existe', usuarioExistente);
             
@@ -212,7 +229,6 @@ appServer.post('/introduce-entry', async (req, res)=>{
     }
 });
 
-//TODO: rota para postar dados como 'saída' de receitas
 appServer.post('/introduce-exit', async (req, res)=>{
     const date = dayjs().format('DD/MM');
     const { name, type, description, value, email } = req.body;
@@ -228,12 +244,12 @@ appServer.post('/introduce-exit', async (req, res)=>{
 
     const schemaMensagem = joi.object({
         name: joi.string().required(),
-        type: joi.string().valid('saída').required(),
+        type: joi.string().valid('saida').required(),
         description: joi.string().required(),
         value: joi.number().required(),
         email: joi.string().email().required()
     });
-    const validacao = schemaMensagem.validate({name, type, description, value}, {abortEarly: false});
+    const validacao = schemaMensagem.validate({name, type, description, value, email}, {abortEarly: false});
 
     console.log('token', token);
     console.log('validação', validacao);
@@ -250,6 +266,10 @@ appServer.post('/introduce-exit', async (req, res)=>{
     
         console.log('token encontrado em sessions', userSession);
         const usuarioExistente = await db.collection('users').findOne({_id: userSession.userId});
+
+        console.log('usuario encontrado em users', usuarioExistente);
+        if(usuarioExistente.email !== validacao.value.email) return res.sendStatus(401);
+
         if(usuarioExistente){
             console.log('usuário existe', usuarioExistente);
 
