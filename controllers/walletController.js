@@ -1,26 +1,9 @@
-import joi from "joi";
-
 import db from '../mongoDB.js';
 
 async function getWalletUser(req, res){
     const { email } = req.headers;
-    const { authorization } = req.headers;
-    console.log(authorization, email);
-
-    const token = authorization?.replace('Bearer', '').trim();
-    console.log('token no get', token);
-    if(!token || !email) return res.sendStatus(401);
-    
-    const schemaEmail = joi.object({
-        email: joi.string().email().required()
-    });
-    const validacao = schemaEmail.validate({email}, {abortEarly: false});
-
-    if(validacao.error){
-        console.log('A validação encontrou erro para fazer get com este email');
-        return res.status(422).send(validacao.error.details.map(err=>err.message));
-    }
-
+    const { token } = res.locals;
+    const { validacao } = res.locals;
     try {
         console.log('bloco try/catch no get com token...')
         const userSession = await db.collection('sessions').findOne({token});

@@ -1,4 +1,3 @@
-import joi from "joi";
 import bcrypt from "bcrypt";
 import { v4 as uuid } from "uuid";
 
@@ -6,28 +5,6 @@ import db from '../mongoDB.js';
 
 async function postSignUpUser(req, res) {
     const { name, email, password } = req.body;
-    const regex = /^[a-zA-zçÇ]{3,12}[0-9]{4,8}$/;
-    const regexName = /^[a-zA-ZáéíóúàâêôãõüçÁÉÍÓÚÀÂÊÔÃÕÜÇ ]+$/;
-    console.log(regexName.test(name));
-
-    if(!name || Number(name) || !regexName.test(name)){
-        console.log('Nome com caracteres númericos, não serão aceitos');
-        return res.status(400).send('Nome com caracteres númericos, não serão aceitos');
-    }
-
-    const schemaCadastro = joi.object({
-        name: joi.string().required(),
-        email: joi.string().email().required(),
-        password: joi.string().pattern(regex).required()
-    });
-    const validacao = schemaCadastro.validate({name, email, password}, {abortEarly: false});
-    console.log(validacao);
-    
-    if(validacao.error){
-        console.log('Todos os dados são obrigatórios. A validação encontrou erro');
-        return res.status(422).send(validacao.error.details.map(err=>err.message));
-    }
-
     try {
         const usuarioExistente = await db.collection('users').findOne({email});
         if(usuarioExistente) {
@@ -49,20 +26,6 @@ async function postSignUpUser(req, res) {
 
 async function postSignInUser(req, res) {
     const { email, password } = req.body;
-    const regex = /^[a-zA-zçÇ]{3,12}[0-9]{4,8}$/;
-
-    const schemaLogin = joi.object({
-        email: joi.string().email().required(),
-        password: joi.string().pattern(regex).required()
-    });
-    const validacao = schemaLogin.validate({email, password}, {abortEarly: false});
-    console.log(validacao);
-    
-    if(validacao.error){
-        console.log('A validação encontrou erro para fazer login');
-        return res.status(422).send(validacao.error.details.map(err=>err.message));
-    }
-
     try {
         const usuarioExistente = await db.collection('users').findOne({email});
         if(usuarioExistente && !(bcrypt.compareSync(password, usuarioExistente.password))){
